@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "264728536491",
+    "project_id": "skilltrackit",
+    "storage_bucket": "skilltrackit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264728536491:android:a4bbe8fe9a64a5c7461eee",
+        "android_client_info": {
+          "package_name": "com.example.skilltrackit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "264728536491-1vr0hcqoevduf32vmaprm1689vr8sc46.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.skilltrackit",
+            "certificate_hash": "ebf6c86831b76821bda6dec0202029e540e4b2da"
+          }
+        },
+        {
+          "client_id": "264728536491-dkfnr7q8s06pbqggr0cqs8l6e1vs2qle.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjZoxLwuMV6kF26IOIPNJacGHJCTTuXzM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "264728536491-dkfnr7q8s06pbqggr0cqs8l6e1vs2qle.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
