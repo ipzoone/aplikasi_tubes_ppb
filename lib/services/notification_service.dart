@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -33,9 +34,7 @@ class NotificationService {
     const initSettings = InitializationSettings(android: androidInit);
     await _localNotif.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Bisa navigate ke halaman jadwal jika perlu
-      },
+      onDidReceiveNotificationResponse: (details) {},
     );
 
     // Buat notification channel Android
@@ -49,6 +48,15 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
+
+    // Minta izin exact alarm di Android 12+ (API 31+)
+    if (Platform.isAndroid) {
+      final androidPlugin = _localNotif
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.requestExactAlarmsPermission();
+      await androidPlugin?.requestNotificationsPermission();
+    }
 
     // --- FCM setup ---
     await _fcm.requestPermission(
@@ -69,10 +77,7 @@ class NotificationService {
       }
     });
 
-    // Background tap handler
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // Handle tap dari background — bisa navigate ke schedule
-    });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {});
   }
 
   /// Ambil FCM token device (dikirim ke backend untuk push notif)
@@ -111,21 +116,26 @@ class NotificationService {
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
 
-    // Cari hari berikutnya yang cocok
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = _nextWeekdayTime(
-      weekday: schedule.dayOfWeek, // 1=Senin, sesuai DateTime.weekday
+    final scheduledDate = _nextWeekdayTime(
+      weekday: schedule.dayOfWeek,
       hour: hour,
       minute: minute,
     );
 
-    // Jika waktu sudah lewat hari ini, set ke minggu depan
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 7));
+    // Cek apakah exact alarm diizinkan (Android 12+)
+    AndroidScheduleMode scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
+    if (Platform.isAndroid) {
+      final androidPlugin = _localNotif
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final canScheduleExact = await androidPlugin?.canScheduleExactNotifications();
+      if (canScheduleExact == true) {
+        scheduleMode = AndroidScheduleMode.exactAllowWhileIdle;
+      }
     }
 
     await _localNotif.zonedSchedule(
-      schedule.id! + 1000, // offset agar tidak tabrakan dengan notif lain
+      schedule.id! + 1000,
       '⏰ Waktunya Belajar: ${schedule.title}',
       schedule.description != null && schedule.description!.isNotEmpty
           ? schedule.description!
@@ -141,8 +151,67 @@ class NotificationService {
           icon: '@mipmap/ic_launcher',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime, // repeat tiap minggu
+      androidScheduleMode: scheduleMode,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
+  /// Test: tampilkan notif LANGSUNG + terjadwal 10 detik
+  Future<void> testNotificationIn5Seconds() async {
+    // 1. Immediate — verifikasi channel & permission
+    await _localNotif.show(
+      9998,
+      '✅ Notif Langsung OK',
+      'Permission & channel berjalan. Tunggu notif terjadwal dalam 10 detik...',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.max,
+          priority: Priority.max,
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+        ),
+      ),
+    );
+
+    // 2. Scheduled 10 detik — verifikasi zonedSchedule
+    final scheduled = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
+
+    AndroidScheduleMode scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
+    if (Platform.isAndroid) {
+      final androidPlugin = _localNotif
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final canExact = await androidPlugin?.canScheduleExactNotifications();
+      if (canExact == true) {
+        scheduleMode = AndroidScheduleMode.exactAllowWhileIdle;
+      }
+    }
+
+    await _localNotif.zonedSchedule(
+      9999,
+      '⏰ Notif Terjadwal OK',
+      'zonedSchedule berjalan! Jadwal mingguan siap aktif.',
+      scheduled,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.max,
+          priority: Priority.max,
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+        ),
+      ),
+      androidScheduleMode: scheduleMode,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -165,14 +234,15 @@ class NotificationService {
       }
     }
   }
-
-  /// Helper: cari TZDateTime untuk hari-dan-waktu berikutnya
+  /// Selalu mengembalikan waktu di MASA DEPAN
   tz.TZDateTime _nextWeekdayTime({
     required int weekday,
     required int hour,
     required int minute,
   }) {
     final now = tz.TZDateTime.now(tz.local);
+
+    // Mulai dari hari ini jam yang diminta
     var candidate = tz.TZDateTime(
       tz.local,
       now.year,
@@ -181,10 +251,17 @@ class NotificationService {
       hour,
       minute,
     );
+
     // Maju hari demi hari sampai weekday cocok
-    while (candidate.weekday != weekday) {
+    // Maksimal loop 7 hari
+    for (int i = 0; i < 7; i++) {
+      if (candidate.weekday == weekday && candidate.isAfter(now)) {
+        return candidate;
+      }
       candidate = candidate.add(const Duration(days: 1));
     }
+
+    // Fallback: kembalikan candidate terakhir (pasti di masa depan)
     return candidate;
   }
 }

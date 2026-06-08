@@ -351,7 +351,16 @@ class _SchedulePageState extends State<SchedulePage> {
             children: [
               Switch.adaptive(
                 value: schedule.isActive,
-                activeColor: themeColor,
+                thumbColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? themeColor
+                      : null,
+                ),
+                trackColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? themeColor.withValues(alpha: 0.4)
+                      : null,
+                ),
                 onChanged: (val) {
                   context
                       .read<ScheduleProvider>()
@@ -668,7 +677,7 @@ class _ScheduleFormSheetState extends State<ScheduleFormSheet> {
 
               // Day picker
               DropdownButtonFormField<int>(
-                value: _selectedDay,
+                initialValue: _selectedDay,
                 decoration: InputDecoration(
                   labelText: 'Hari',
                   prefixIcon: const Icon(Icons.calendar_today_rounded),

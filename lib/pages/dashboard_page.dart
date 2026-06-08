@@ -6,6 +6,8 @@ import 'package:skilltrackit/models/skill_model.dart';
 import 'package:skilltrackit/providers/skill_service.dart';
 import 'package:skilltrackit/providers/auth_provider.dart';
 import 'package:skilltrackit/pages/login_page.dart';
+import 'package:skilltrackit/services/notification_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -981,6 +983,82 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(height: 36),
+
+          // Notifikasi Section
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade100,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Notifikasi Jadwal',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Untuk Xiaomi: pastikan Battery Saver = No Restrictions dan Autostart = ON',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 14),
+                // Test button
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await NotificationService().testNotificationIn5Seconds();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Notif langsung + terjadwal 10 detik dikirim. Minimize app!'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                    label: const Text('Test Notifikasi'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.cyan.shade600,
+                      side: BorderSide(color: Colors.cyan.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Buka app settings Xiaomi
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      // Buka halaman settings app (battery, autostart, dll)
+                      await openAppSettings();
+                    },
+                    icon: const Icon(Icons.settings_applications_rounded, size: 18),
+                    label: const Text('Buka Pengaturan Izin App'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade700,
+                      side: BorderSide(color: Colors.orange.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
 
           // Logout Button
           SizedBox(
