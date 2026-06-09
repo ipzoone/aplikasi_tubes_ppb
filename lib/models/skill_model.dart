@@ -1,8 +1,9 @@
+/// Model representasi data Skill (Keahlian) mahasiswa.
 class Skill {
-  final int? id;
-  final String name;
-  final double level;
-  final String status;
+  final int? id;         // ID unik dari database backend
+  final String name;     // Nama keahlian (contoh: Flutter, Laravel)
+  final double level;    // Persentase tingkat penguasaan (0 - 100)
+  final String status;   // Status penguasaan (Beginner, Intermediate, Master)
 
   Skill({
     this.id,
@@ -11,6 +12,7 @@ class Skill {
     required this.status,
   });
 
+  /// Membuat instance objek [Skill] dari data JSON (Map).
   factory Skill.fromJson(Map<String, dynamic> json) {
     return Skill(
       id: json['id'],
@@ -20,6 +22,7 @@ class Skill {
     );
   }
 
+  /// Mengubah objek [Skill] menjadi format JSON (Map) untuk dikirim ke API.
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
@@ -29,3 +32,4 @@ class Skill {
     };
   }
 }
+
