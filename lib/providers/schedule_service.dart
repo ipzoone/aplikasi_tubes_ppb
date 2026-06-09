@@ -23,6 +23,8 @@ class ScheduleService {
     ));
   }
 
+  /// Mengambil daftar semua jadwal belajar dari API.
+  /// Menggunakan metode HTTP GET pada endpoint schedules.
   Future<List<StudySchedule>> getSchedules() async {
     try {
       final response = await _dio.get(ApiConstants.schedules);
@@ -30,12 +32,14 @@ class ScheduleService {
         final List data = response.data;
         return data.map((item) => StudySchedule.fromJson(item)).toList();
       }
-      throw Exception('Gagal mengambil jadwal');
+      throw Exception('Gagal mengambil jadwal dari server');
     } on DioException catch (e) {
-      throw Exception('Dio Error: ${e.message}');
+      throw Exception('Kesalahan Jaringan/Dio: ${e.message}');
     }
   }
 
+  /// Membuat jadwal belajar baru di database backend.
+  /// Menggunakan metode HTTP POST dengan menyertakan payload data jadwal.
   Future<StudySchedule> createSchedule(StudySchedule schedule) async {
     try {
       final response = await _dio.post(
@@ -45,9 +49,9 @@ class ScheduleService {
       if (response.statusCode == 201) {
         return StudySchedule.fromJson(response.data);
       }
-      throw Exception('Gagal membuat jadwal');
+      throw Exception('Gagal membuat jadwal baru');
     } on DioException catch (e) {
-      String msg = 'Terjadi kesalahan';
+      String msg = 'Terjadi kesalahan saat memproses jadwal';
       if (e.response?.data != null) {
         if (e.response?.data['errors'] != null) {
           Map errors = e.response?.data['errors'];
@@ -60,29 +64,38 @@ class ScheduleService {
     }
   }
 
+  /// Memperbarui jadwal belajar yang sudah ada berdasarkan ID jadwal.
+  /// Menggunakan metode HTTP PUT pada API endpoint.
   Future<StudySchedule> updateSchedule(int id, StudySchedule schedule) async {
     try {
-      final response = await _dio.put(
+      final response = await _dio.post(
         '${ApiConstants.schedules}/$id',
-        data: schedule.toJson(),
+        data: {
+          ...schedule.toJson(),
+          '_method': 'PUT', // standard Laravel REST routing fallback
+        },
       );
       if (response.statusCode == 200) {
         return StudySchedule.fromJson(response.data);
       }
-      throw Exception('Gagal mengupdate jadwal');
+      throw Exception('Gagal mengupdate data jadwal');
     } on DioException catch (e) {
-      throw Exception('Dio Error: ${e.message}');
+      throw Exception('Kesalahan Jaringan/Dio: ${e.message}');
     }
   }
 
+  /// Menghapus jadwal belajar dari database backend berdasarkan ID.
+  /// Menggunakan metode HTTP DELETE pada API endpoint.
   Future<void> deleteSchedule(int id) async {
     try {
       await _dio.delete('${ApiConstants.schedules}/$id');
     } on DioException catch (e) {
-      throw Exception('Dio Error: ${e.message}');
+      throw Exception('Kesalahan Jaringan/Dio: ${e.message}');
     }
   }
 
+  /// Mengaktifkan atau menonaktifkan alarm/notifikasi jadwal belajar.
+  /// Menggunakan metode HTTP PATCH pada endpoint toggle.
   Future<StudySchedule> toggleSchedule(int id, bool isActive) async {
     try {
       final response = await _dio.patch(
@@ -92,9 +105,10 @@ class ScheduleService {
       if (response.statusCode == 200) {
         return StudySchedule.fromJson(response.data);
       }
-      throw Exception('Gagal mengubah status jadwal');
+      throw Exception('Gagal mengubah status aktif jadwal');
     } on DioException catch (e) {
-      throw Exception('Dio Error: ${e.message}');
+      throw Exception('Kesalahan Jaringan/Dio: ${e.message}');
     }
   }
 }
+
