@@ -9,7 +9,7 @@ class AuthService {
     receiveTimeout: const Duration(seconds: 15),
   ));
 
-  // Simpan data user ke SharedPreferences
+  // Simpan data user ke SharedPreferences secara lokal di perangkat
   Future<void> _saveSession(String token, String name, String email, [String? avatar]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('api_token', token);
@@ -22,7 +22,7 @@ class AuthService {
     }
   }
 
-  // Hapus data user dari SharedPreferences (Logout)
+  // Hapus data user dari SharedPreferences saat pengguna keluar (Logout)
   Future<void> _clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('api_token');
@@ -31,19 +31,20 @@ class AuthService {
     await prefs.remove('user_avatar');
   }
 
-  // Mengambil token yang disimpan
+  // Mengambil token akses API Bearer yang sedang disimpan
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('api_token');
   }
 
-  // Cek apakah user sudah login
+  // Cek apakah pengguna sudah memiliki sesi login aktif
   Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
   }
 
-  // Fungsi Register
+  /// Registrasi akun mahasiswa baru menggunakan nama, email, dan password.
+  /// Mengirimkan POST request ke backend endpoint register.
   Future<Map<String, dynamic>> register({
     required String name,
     required String email,
@@ -71,7 +72,7 @@ class AuthService {
       String errMsg = 'Terjadi kesalahan jaringan';
       if (e.response != null && e.response?.data != null) {
         if (e.response?.data['errors'] != null) {
-          // Mengambil error validation dari Laravel
+          // Mengambil dan format error validasi dari Laravel
           Map errors = e.response?.data['errors'];
           errMsg = errors.values.map((val) => (val as List).join(', ')).join('\n');
         } else {
@@ -84,7 +85,8 @@ class AuthService {
     }
   }
 
-  // Fungsi Login
+  /// Login kredensial akun lokal (email + password).
+  /// Mengirimkan POST request ke backend dan menyimpan token sesi jika sukses.
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -124,7 +126,8 @@ class AuthService {
     }
   }
 
-  // Fungsi Login dengan Google
+  /// Melakukan otentikasi login menggunakan ID Token dari Google.
+  /// Mengirimkan token ke backend server untuk diverifikasi secara aman via Firebase Admin SDK.
   Future<Map<String, dynamic>> loginWithGoogle({required String idToken}) async {
     try {
       final response = await _dio.post(
@@ -163,8 +166,7 @@ class AuthService {
     }
   }
 
-  // Fungsi Logout
-
+  /// Logout dari sistem, menghapus sesi di backend API, dan menghapus sesi penyimpanan lokal.
   Future<Map<String, dynamic>> logout() async {
     try {
       final token = await getToken();
