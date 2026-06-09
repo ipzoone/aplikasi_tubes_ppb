@@ -24,12 +24,13 @@ class NotificationService {
   static const _channelName = 'Jadwal Belajar';
   static const _channelDesc = 'Notifikasi pengingat jadwal belajar mingguan';
 
-  /// Inisialisasi — panggil sekali di main()
+  /// Inisialisasi konfigurasi notifikasi lokal dan Firebase Messaging (FCM).
+  /// Panggil fungsi ini sekali saat inisialisasi aplikasi di main.dart.
   Future<void> init() async {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
-    // --- Local Notifications setup ---
+    // --- Pengaturan Notifikasi Lokal ---
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
     await _localNotif.initialize(
@@ -37,7 +38,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: (details) {},
     );
 
-    // Buat notification channel Android
+    // Membuat channel notifikasi khusus untuk sistem operasi Android
     const androidChannel = AndroidNotificationChannel(
       _channelId,
       _channelName,
@@ -49,7 +50,7 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
 
-    // Minta izin exact alarm di Android 12+ (API 31+)
+    // Meminta perizinan alarm presisi untuk Android 12 ke atas (API 31+)
     if (Platform.isAndroid) {
       final androidPlugin = _localNotif
           .resolvePlatformSpecificImplementation<
@@ -58,14 +59,14 @@ class NotificationService {
       await androidPlugin?.requestNotificationsPermission();
     }
 
-    // --- FCM setup ---
+    // --- Pengaturan Firebase Cloud Messaging (FCM) ---
     await _fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Foreground FCM handler
+    // Handler ketika pesan notifikasi FCM diterima saat aplikasi berada di Foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
       if (notification != null) {
@@ -80,12 +81,13 @@ class NotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {});
   }
 
-  /// Ambil FCM token device (dikirim ke backend untuk push notif)
+  /// Mengambil token identifikasi FCM unik dari perangkat ini.
+  /// Token ini dikirimkan ke server backend untuk keperluan push notification.
   Future<String?> getFcmToken() async {
     return await _fcm.getToken();
   }
 
-  /// Tampilkan notif langsung (saat ini)
+  /// Menampilkan notifikasi instan langsung saat dipanggil.
   Future<void> _showImmediateNotification({
     required int id,
     required String title,
@@ -108,7 +110,7 @@ class NotificationService {
     );
   }
 
-  /// Jadwalkan notif lokal mingguan untuk satu jadwal belajar
+  /// Menjadwalkan notifikasi pengingat mingguan berulang berdasarkan jadwal belajar mahasiswa.
   Future<void> scheduleWeeklyNotification(StudySchedule schedule) async {
     if (!schedule.isActive || schedule.id == null) return;
 
@@ -122,7 +124,7 @@ class NotificationService {
       minute: minute,
     );
 
-    // Cek apakah exact alarm diizinkan (Android 12+)
+    // Konfigurasi mode penjadwalan alarm (exact vs inexact) untuk kompatibilitas Android 12+
     AndroidScheduleMode scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
     if (Platform.isAndroid) {
       final androidPlugin = _localNotif
@@ -158,9 +160,9 @@ class NotificationService {
     );
   }
 
-  /// Test: tampilkan notif LANGSUNG + terjadwal 10 detik
+  /// Fungsi pengujian untuk memicu notifikasi instan dan notifikasi terjadwal 10 detik.
   Future<void> testNotificationIn5Seconds() async {
-    // 1. Immediate — verifikasi channel & permission
+    // 1. Tampilkan notifikasi instan langsung
     await _localNotif.show(
       9998,
       '✅ Notif Langsung OK',
@@ -179,7 +181,7 @@ class NotificationService {
       ),
     );
 
-    // 2. Scheduled 10 detik — verifikasi zonedSchedule
+    // 2. Jadwalkan notifikasi pengingat 10 detik dari sekarang
     final scheduled = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
 
     AndroidScheduleMode scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
@@ -215,17 +217,17 @@ class NotificationService {
     );
   }
 
-  /// Batalkan notif untuk jadwal tertentu
+  /// Membatalkan antrian alarm/notifikasi tertentu berdasarkan ID jadwal.
   Future<void> cancelScheduleNotification(int scheduleId) async {
     await _localNotif.cancel(scheduleId + 1000);
   }
 
-  /// Batalkan semua notif terjadwal
+  /// Membatalkan seluruh antrian notifikasi lokal terjadwal pada perangkat.
   Future<void> cancelAllNotifications() async {
     await _localNotif.cancelAll();
   }
 
-  /// Re-schedule semua jadwal aktif (dipanggil saat app buka)
+  /// Menjadwalkan ulang semua notifikasi untuk seluruh jadwal belajar yang aktif.
   Future<void> rescheduleAll(List<StudySchedule> schedules) async {
     await cancelAllNotifications();
     for (final schedule in schedules) {
@@ -234,7 +236,8 @@ class NotificationService {
       }
     }
   }
-  /// Selalu mengembalikan waktu di MASA DEPAN
+
+  /// Mengkalkulasi pencarian waktu di masa depan yang sesuai dengan hari dan jam target.
   tz.TZDateTime _nextWeekdayTime({
     required int weekday,
     required int hour,
@@ -242,7 +245,7 @@ class NotificationService {
   }) {
     final now = tz.TZDateTime.now(tz.local);
 
-    // Mulai dari hari ini jam yang diminta
+    // Mulai penentuan dari hari ini di jam yang ditentukan
     var candidate = tz.TZDateTime(
       tz.local,
       now.year,
@@ -252,8 +255,7 @@ class NotificationService {
       minute,
     );
 
-    // Maju hari demi hari sampai weekday cocok
-    // Maksimal loop 7 hari
+    // Perulangan hari untuk mencocokkan target hari dalam seminggu (maksimal 7 hari)
     for (int i = 0; i < 7; i++) {
       if (candidate.weekday == weekday && candidate.isAfter(now)) {
         return candidate;
@@ -261,7 +263,6 @@ class NotificationService {
       candidate = candidate.add(const Duration(days: 1));
     }
 
-    // Fallback: kembalikan candidate terakhir (pasti di masa depan)
     return candidate;
   }
 }
