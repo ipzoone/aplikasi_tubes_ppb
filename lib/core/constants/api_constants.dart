@@ -1,7 +1,7 @@
 class ApiConstants {
   // Gunakan 10.0.2.2 jika pake emulator Android, atau 127.0.0.1 jika pake web/windows
   // Pastikan diakhiri dengan / agar Dio BaseOptions bekerja dengan benar
-  static const String baseUrl = 'http://192.168.1.10:8000/api/';
+  static const String baseUrl = 'http://192.168.137.1:8000/api/';
   
   // Endpoint
   static const String skills = 'skills';
